@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { io } from "socket.io-client";
+import socket from "../socket";
 
 export default function Profile() {
-  const [socket, setSocket] = useState<any>(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<
     { username: string; message: string }[]
@@ -12,18 +11,25 @@ export default function Profile() {
     { username: "System", message: "Hello! This is a test message." },
     { username: "User2", message: "XD" },
     { username: "User3", message: "This is a short message." },
-    { username: "User1", message: "Another test message to check layout." },
+    {
+      username: "User1",
+      message:
+        "Another test message to check layout if it can fit long messages like this one.",
+    },
   ]);
   useEffect(() => {
-    const socket = io("http://localhost:4000", {
-      transports: ["websocket"],
-    });
-    console.log(socket);
-    setSocket(socket);
+    const handleIncomingMessage = (msg: string, id: string) => {
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { username: id, message: msg },
+      ]);
+    };
 
-    socket.on("message", (msg) => {
-      setMessages((prevMessages) => [...prevMessages, msg]);
-    });
+    socket.on("message", handleIncomingMessage);
+
+    return () => {
+      socket.off("message", handleIncomingMessage);
+    };
   }, []);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {

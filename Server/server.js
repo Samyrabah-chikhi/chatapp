@@ -9,6 +9,8 @@ import userModel from "./model/userModel.js";
 
 dotenv.config();
 
+const users = {}
+
 const app = express();
 const server = http.createServer(app);
 
@@ -22,13 +24,26 @@ app.use(
 const io = new Server(server);
 
 io.on("connection", (socket) => {
-  console.log("a user connected");
+  console.log("a user connected", socket.id);
 
   socket.on("disconnect", () => {
     console.log("a user disconnected");
   });
+
+  socket.on("setUsername", (username) => {
+    console.log(username.username,socket.id)
+    socket.id = "1"
+    console.log(socket.id)
+    users[socket.id] = username.username
+    console.log("users",users)
+    console.log(users[socket.id])
+  })
+
   socket.on("message",(msg) => {
-    io.emit("message",msg,socket.id)
+    console.log(msg)
+    console.log(socket.id)
+    console.log(users[socket.id])
+    io.emit("message",msg,users[socket.id])
   })
 });
 

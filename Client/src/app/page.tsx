@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEventHandler, SetStateAction, useState } from "react";
+import { FormEventHandler, SetStateAction, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Login from "./components/Login";
 import Register from "./components/Register";
+import socket from "./socket";
 
 export default function page() {
   const [username, setUsername] = useState("");
@@ -26,6 +27,8 @@ export default function page() {
       body: JSON.stringify({ username, password }),
     });
     if (res.ok) {
+      const user = await res.json();
+      socket.emit("setUsername", user.user);
       router.push("/profile");
     } else {
       const response = await res.json();
@@ -46,6 +49,8 @@ export default function page() {
       body: JSON.stringify({ username, password }),
     });
     if (res.ok) {
+      const user = await res.json();
+      socket.emit("setUsername", user.user);
       router.push("/profile");
     } else {
       const response = await res.json();
