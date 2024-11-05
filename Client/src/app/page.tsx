@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEventHandler, useState } from "react";
+import { FormEventHandler, SetStateAction, useState } from "react";
 import { useRouter } from "next/navigation";
 import Login from "./components/Login";
 import Register from "./components/Register";
@@ -13,7 +13,11 @@ export default function page() {
 
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (
+    e: React.FormEvent<HTMLFormElement>,
+    setError: React.Dispatch<React.SetStateAction<string>>,
+    setRequired: React.Dispatch<React.SetStateAction<boolean>>
+  ) => {
     const res = await fetch("http://localhost:4000/login", {
       method: "POST",
       headers: {
@@ -24,10 +28,16 @@ export default function page() {
     if (res.ok) {
       router.push("/profile");
     } else {
-      alert("Can't login");
+      const response = await res.json();
+      setRequired(true);
+      setError(response.message);
     }
   };
-  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleRegister = async (
+    e: React.FormEvent<HTMLFormElement>,
+    setError: React.Dispatch<SetStateAction<string>>,
+    setRequired: React.Dispatch<React.SetStateAction<boolean>>
+  ) => {
     const res = await fetch("http://localhost:4000/register", {
       method: "POST",
       headers: {
@@ -38,7 +48,9 @@ export default function page() {
     if (res.ok) {
       router.push("/profile");
     } else {
-      alert("problem with registration");
+      const response = await res.json();
+      setRequired(true);
+      setError(response.message);
     }
   };
 

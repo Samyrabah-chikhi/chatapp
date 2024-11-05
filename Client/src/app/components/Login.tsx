@@ -7,7 +7,11 @@ interface LoginInterface {
   setPassword: React.Dispatch<SetStateAction<string>>;
   login: boolean;
   setLogin: React.Dispatch<SetStateAction<boolean>>;
-  handleLogin: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  handleLogin: (
+    e: React.FormEvent<HTMLFormElement>,
+    setError: React.Dispatch<SetStateAction<string>>,
+    setRequired: React.Dispatch<React.SetStateAction<boolean>>
+  ) => Promise<void>;
 }
 
 const Login = ({
@@ -31,7 +35,7 @@ const Login = ({
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (username.trim() != "" && password.trim() != "") {
-      await handleLogin(e);
+      await handleLogin(e,setError,setRequired);
     } else {
       setRequired(true);
       setError("ALL fields are required!");

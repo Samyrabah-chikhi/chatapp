@@ -9,7 +9,11 @@ interface RegisterInterface {
   setPasswordConfirm: React.Dispatch<SetStateAction<string>>;
   login: boolean;
   setLogin: React.Dispatch<SetStateAction<boolean>>;
-  handleRegister: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  handleRegister: (
+    e: React.FormEvent<HTMLFormElement>,
+    setError: React.Dispatch<SetStateAction<string>>,
+    setRequired: React.Dispatch<React.SetStateAction<boolean>>
+  ) => Promise<void>;
 }
 
 const Register = ({
@@ -43,7 +47,7 @@ const Register = ({
       passwordConfirm.trim() != ""
     ) {
       if (password == passwordConfirm) {
-        await handleRegister(e);
+        await handleRegister(e,setError,setRequired);
       } else {
         setRequired(true);
         setError("Passwords MUST match!");
