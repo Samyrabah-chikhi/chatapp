@@ -3,6 +3,7 @@ import mongoose, { trusted } from "mongoose";
 import cors from "cors";
 import http from "http";
 import dotenv from "dotenv";
+import { Server } from "socket.io";
 
 import userModel from "./model/userModel.js";
 
@@ -10,13 +11,28 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+
 app.use(express.json());
 app.use(
-  cors({
-    origin: "http://localhost:3000",
-    credentials: trusted,
-  })
+    cors({
+      origin: "http://localhost:3000",
+    })
 );
+
+const io = new Server(server);
+
+io.on("connection", (socket) => {
+  console.log("a user connected");
+
+  socket.on("disconnect", () => {
+    console.log("a user disconnected");
+  });
+  socket.on("message",(msg) => {
+    io.emit("message",msg,socket.id)
+  })
+});
+
+
 const PORT = process.env.PORT || 3001;
 const MONGO_URL = process.env.MONGO_URL;
 
@@ -36,7 +52,7 @@ app.post("/register", async (req, res) => {
     const { username, password } = req.body;
     const userExist = await userModel.getUsersByUsername(username);
     if (userExist) {
-      res.status(403).json({ message: "User already exist"});
+      res.status(403).json({ message: "User already exist" });
     } else {
       const user = await userModel.createUser(req.body);
       if (user != {}) {
