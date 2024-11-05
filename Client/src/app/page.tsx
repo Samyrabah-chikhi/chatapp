@@ -13,8 +13,8 @@ export default function page() {
 
   const router = useRouter();
 
-  const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    const res = await fetch('http://localhost:4000/login', {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    const res = await fetch("http://localhost:4000/login", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -27,8 +27,8 @@ export default function page() {
       alert("Can't login");
     }
   };
-  const handleRegister = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    const res = await fetch('http://localhost:4000/register', {
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    const res = await fetch("http://localhost:4000/register", {
       method: "POST",
       headers: {
         "content-type": "application/JSON",
