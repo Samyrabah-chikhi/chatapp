@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  color: black;
+}
+body {
+  background-color: #6f4a3d;
+}
+.form-div {
+  border: none;
+  background-color: #d2a563;
+}
+input {
+  background-color: #d3c2aa;
+}
+input:hover {
+  transition: transform 0.2s;
+  transform: scale(1.02);
+}
+
+.login-btn {
+  background-color: #895444;
+}
+.register-btn {
+  background-color: #896a66;
+}
+hr {
+  padding-top: 0.01%;
+}
