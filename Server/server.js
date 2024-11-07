@@ -10,7 +10,7 @@ import userModel from "./model/userModel.js";
 
 dotenv.config();
 
-const users = {};
+let users = []
 
 const app = express();
 const server = http.createServer(app);
@@ -27,18 +27,19 @@ app.use(
 const io = new Server(server);
 
 io.on("connection", (socket) => {
-  console.log("a user connected", socket.id);
-
   socket.on("disconnect", () => {
-    console.log("a user disconnected");
+    users = users.filter((user) => user!==socket.id)
+    io.emit("disconnected-user", users);
   });
 
   socket.on("setUsername", (username) => {
-    users[socket.id] = username.username;
+    socket.id = username;
+    users.push(socket.id)
+    io.emit("active-user", users);
   });
 
   socket.on("message", (msg) => {
-    io.emit("message", msg, users[socket.id]);
+    io.emit("message", msg, socket.id);
   });
 });
 
@@ -58,7 +59,7 @@ mongoose
 
 app.get("/home", (req, res) => {
   if (req.cookies.user) {
-    res.json({ message: "Welcome" });
+    res.json({ user: req.cookies.user });
   } else {
     res.status(401).json({ message: "Permission denied" });
   }
@@ -104,9 +105,9 @@ app.post("/login", async (req, res) => {
 });
 
 app.get("/users", async (req, res) => {
-  const users = await userModel.getUsers()
+  const users = await userModel.getUsers();
   const usernames = users.map((user) => {
-    return user.username
-  })
-  res.json({users: usernames})
+    return user.username;
+  });
+  res.json({ users: usernames });
 });

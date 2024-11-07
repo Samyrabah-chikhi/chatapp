@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { act, useEffect, useState } from "react";
 import socket from "../socket";
 import { useRouter } from "next/navigation";
 import { get } from "http";
@@ -12,7 +12,7 @@ export default function Profile() {
   >([{ username: "System", message: "Hello! This is a test message." }]);
 
   const [users, setUsers] = useState<string[]>([]);
-  const [activeUsers,setActiveUsers] = useState<string[]>(["User1","User2","Samy"])
+  const [activeUsers, setActiveUsers] = useState<string[]>(["Samy"]);
   const router = useRouter();
 
   useEffect(() => {
@@ -23,7 +23,7 @@ export default function Profile() {
       });
       if (res.ok) {
         const msg = await res.json();
-        console.log(msg.message);
+        socket.emit("setUsername", msg.user);
       } else {
         router.push("/");
       }
@@ -38,18 +38,7 @@ export default function Profile() {
 
       if (res.ok) {
         const users = await res.json();
-        console.log(users.users);
-        setUsers([
-          ...users.users,
-          "User1",
-          "User2",
-          "User3",
-          "User1",
-          "User2",
-          "User3",
-          "User4",
-          "USERWITHANAMETOOLONG",
-        ]);
+        setUsers([...users.users]);
       } else {
         console.log("Error fetching users");
       }
@@ -64,9 +53,17 @@ export default function Profile() {
       ]);
     };
 
+    const updateActiveUsers = (users: string[]) => {
+      setActiveUsers(users);
+    };
+
+    socket.on("disconnected-user", updateActiveUsers);
+    socket.on("active-user", updateActiveUsers);
     socket.on("message", handleIncomingMessage);
 
     return () => {
+      socket.off("diconnected-user", updateActiveUsers);
+      socket.off("active-user", updateActiveUsers);
       socket.off("message", handleIncomingMessage);
     };
   }, []);
@@ -85,16 +82,24 @@ export default function Profile() {
       <div className="flex justify-center gap-4 w-full h-[70vh] basis-full mt-[3%]">
         <div className="users flex flex-col w-[15%] h-[70vh] bg-yellow-100 rounded-md items-center gap-2 overflow-y-auto">
           {users.map((user, id) => {
-            const color = activeUsers.includes(user) ? "green-600" : "red-600"
-            const bgColor = activeUsers.includes(user) ? "bg-green-600" : "bg-red-600";
-            console.log(bgColor)
+            const color = activeUsers.includes(user) ? "green-600" : "red-600";
+            const bgColor = activeUsers.includes(user)
+              ? "bg-green-600"
+              : "bg-red-600";
             return (
               <div
                 className="flex w-[80%] py-5 mt-2 p-2 bg-orange-300 rounded-md items-center overflow-hidden"
                 key={id}
               >
-                <h3 className="ml-2 text-center text-xl font-medium truncate" title={user}>{user}</h3>
-                <div className={`ml-auto rounded-full border border-${color} p-1 ${bgColor} h-[5%] w-[5%]`}></div>
+                <h3
+                  className="ml-2 text-center text-xl font-medium truncate"
+                  title={user}
+                >
+                  {user}
+                </h3>
+                <div
+                  className={`ml-auto rounded-full border border-${color} p-1 ${bgColor} h-[5%] w-[5%]`}
+                ></div>
               </div>
             );
           })}
