@@ -57,3 +57,22 @@ hr {
 .chat-container::-webkit-scrollbar-thumb:hover {
   background-color: #555; 
 }
+
+
+.users::-webkit-scrollbar {
+  width: 10px; 
+}
+
+.users::-webkit-scrollbar-track {
+  background: #f1f1f1; 
+}
+
+.users::-webkit-scrollbar-thumb {
+  background-color: #dfb717; 
+  border-radius: 10px; 
+  border: 2px solid #f1f1f1; 
+}
+
+.users::-webkit-scrollbar-thumb:hover {
+  background-color: #b69306; 
+}

@@ -21,6 +21,7 @@ export default function page() {
   ) => {
     const res = await fetch("http://localhost:4000/login", {
       method: "POST",
+      credentials: "include",
       headers: {
         "content-type": "application/json",
       },
@@ -43,6 +44,7 @@ export default function page() {
   ) => {
     const res = await fetch("http://localhost:4000/register", {
       method: "POST",
+      credentials: "include",
       headers: {
         "content-type": "application/JSON",
       },
