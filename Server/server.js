@@ -6,9 +6,13 @@ import dotenv from "dotenv";
 import { Server } from "socket.io";
 import cookieParser from "cookie-parser";
 import cookie from "cookie";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 import userModel from "./model/userModel.js";
+import MessageModel from "./model/messageModel.js";
+import conversationModel from "./model/conversationModel.js";
+import { error } from "console";
 
 dotenv.config();
 
@@ -72,15 +76,17 @@ const authentificationMiddleWare = async (req, res, next) => {
   if (!token) return res.status(401).json({ error: "Access denied" });
   try {
     const decoded = jwt.verify(token, process.env.SECRET);
-    req.userId = decoded.userId;
+    if (!decoded) res.status(401).json({ error: "Unothorized! invalid token" });
+    console.log(decoded.userID);
+    req.userID = decoded.userID;
     next();
   } catch (error) {
     res.status(401).json({ message: "User not logged in" });
   }
 };
 
-const asignToken = (username, expiry, res) => {
-  const token = jwt.sign({ username: username }, process.env.SECRET, {
+const asignToken = (userID, expiry, res) => {
+  const token = jwt.sign({ userID }, process.env.SECRET, {
     expiresIn: expiry,
   });
 
@@ -108,9 +114,10 @@ app.post("/register", async (req, res) => {
     if (userExist) {
       res.status(403).json({ message: "User already exist" });
     } else {
-      const user = await userModel.createUser(req.body);
+      const hashedPW = await bcrypt.hash(password, 10);
+      const user = await userModel.createUser({ username, password: hashedPW });
       if (user != {}) {
-        asignToken(username, 5 * 60, res);
+        asignToken(userExist._id, Number(process.env.EXPIRY), res);
         res.json({ message: "succesful", user });
       } else {
         res.status(501).json({ message: "couldn't create user" });
@@ -124,13 +131,14 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
   if (req.body && req.body.username && req.body.password) {
     const { username, password } = req.body;
-    const user = await userModel.getUsersByUsername(username);
-    if (user) {
-      if (user.password == password) {
-        asignToken(username, 5 * 60, res);
+    const userExist = await userModel.getUsersByUsername(username);
+    if (userExist) {
+      const passwordsMatch = await bcrypt.compare(password, userExist.password);
+      if (passwordsMatch) {
+        asignToken(userExist._id, Number(process.env.EXPIRY), res);
         const userFiltered = {
-          _id: user._id,
-          username: user.username,
+          _id: userExist._id,
+          username: userExist.username,
         };
         res.json({ message: "Successfuly logged in", user: userFiltered });
       } else {
@@ -150,4 +158,52 @@ app.get("/users", authentificationMiddleWare, async (req, res) => {
     return user.username;
   });
   res.json({ users: usernames });
+});
+
+app.post("/send/:id", authentificationMiddleWare, async (req, res) => {
+  try {
+    const { message } = req.body;
+    const { id: receiverID } = req.params;
+    const senderID = req.userID;
+
+    let conversation = await conversationModel.findOne({
+      participants: { $all: [senderID, receiverID] },
+    });
+    if (!conversation) {
+      conversation = await conversationModel.create({
+        participants: [receiverID, senderID],
+      });
+    }
+
+    const newMsg = await MessageModel.create({
+      senderID: senderID,
+      receiverID: receiverID,
+      message: message,
+    });
+    if (newMsg) {
+      conversation.messages.push(newMsg._id);
+    }
+
+    await Promise.all([await conversation.save(), await newMsg.save()]);
+
+    res.status(201).json(newMsg);
+  } catch (e) {
+    console.log("Error sending msg: ", e);
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+app.get("/:id", authentificationMiddleWare, async (req, res) => {
+  try {
+    const { id: userChat } = req.params;
+    const userCurrent = req.userID;
+
+    const conversation = await conversationModel.findOne({
+      participants: { $all: [userChat, userCurrent] },
+    }).populate("messages");
+
+    res.status(200).json(conversation.messages)
+  } catch (e) {
+    res.status(500).json({ error: "Internal error" });
+  }
 });
