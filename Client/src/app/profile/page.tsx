@@ -5,31 +5,20 @@ import socket from "../socket";
 import { useRouter } from "next/navigation";
 import { get } from "http";
 
+type Message = { username: string; message: string };
+type MessagesByUser = { [id: string]: Message[] };
+
 export default function Profile() {
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<
-    { username: string; message: string }[]
-  >([{ username: "System", message: "Hello! This is a test message." }]);
+  const [messages, setMessages] = useState<MessagesByUser>({});
 
+  const [to, setTo] = useState<string>("");
+  const [activeUser, setActiveUser] = useState("");
   const [users, setUsers] = useState<string[]>([]);
   const [activeUsers, setActiveUsers] = useState<string[]>(["Samy"]);
   const router = useRouter();
 
   useEffect(() => {
-    const allow = async () => {
-      const res = await fetch("http://localhost:4000/home", {
-        method: "GET",
-        credentials: "include",
-      });
-      if (res.ok) {
-        const msg = await res.json();
-        socket.emit("setUsername", msg.user);
-      } else {
-        router.push("/");
-      }
-    };
-    allow();
-
     const getUsers = async () => {
       const res = await fetch("http://localhost:4000/users", {
         method: "GET",
@@ -40,42 +29,36 @@ export default function Profile() {
         const users = await res.json();
         setUsers([...users.users]);
       } else {
+        router.push("/");
         console.log("Error fetching users");
       }
     };
 
     getUsers();
-
-    const handleIncomingMessage = (msg: string, id: string) => {
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { username: id, message: msg },
-      ]);
-    };
-
-    const updateActiveUsers = (users: string[]) => {
-      setActiveUsers(users);
-    };
-
-    socket.on("disconnected-user", updateActiveUsers);
-    socket.on("active-user", updateActiveUsers);
-    socket.on("message", handleIncomingMessage);
-
-    return () => {
-      socket.off("diconnected-user", updateActiveUsers);
-      socket.off("active-user", updateActiveUsers);
-      socket.off("message", handleIncomingMessage);
-    };
+    
   }, []);
+
+  const updateMessages = (id: string, msg: string) => {
+    setMessages((prevMessages) => {
+      const userMessages = prevMessages[id] || [];
+      return {
+        ...prevMessages,
+        [id]: [...userMessages, { username: id, message: msg }],
+      };
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (message.trim() != "") {
-      socket.emit("message", message);
+      socket.emit("message", message, to);
+      updateMessages(to, message);
       setMessage("");
     }
   };
-
+  const handleUserClick = (id: number) => {
+    setTo(users[id]);
+  };
   return (
     <div className="flex flex-col items-center">
       <h1 className="mt-[1%] font-bold text-5xl">GLOBAL CHAT APP</h1>
@@ -87,8 +70,9 @@ export default function Profile() {
               ? "bg-green-600"
               : "bg-red-600";
             return (
-              <div
-                className="flex w-[80%] py-5 mt-2 p-2 bg-orange-300 rounded-md items-center overflow-hidden"
+              <button
+                onClick={(e) => handleUserClick(id)}
+                className="hover:bg-orange-400 flex w-[80%] py-4 mt-4 p-2 bg-orange-300 rounded-md items-center overflow-hidden"
                 key={id}
               >
                 <h3
@@ -100,17 +84,21 @@ export default function Profile() {
                 <div
                   className={`ml-auto rounded-full border border-${color} p-1 ${bgColor} h-[5%] w-[5%]`}
                 ></div>
-              </div>
+              </button>
             );
           })}
         </div>
         <div className="flex flex-col justify-between w-[50%] h-[70vh] bg-amber-100 shadow-lg rounded-lg p-5">
           <div className="chat-container flex flex-col gap-2 overflow-y-auto">
-            {messages.map((msg, index) => (
+            {messages[to]?.map((msg, index) => (
               <div key={index} className="bg-gray-200 p-2 rounded-md shadow-sm">
                 <strong>{msg.username}:</strong> {msg.message}
               </div>
-            ))}
+            )) || (
+              <div className="bg-gray-200 p-2 rounded-md shadow-sm">
+                <strong>System: </strong>No messages with this user yet.
+              </div>
+            )}
           </div>
           <form
             onSubmit={handleSubmit}
