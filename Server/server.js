@@ -32,30 +32,7 @@ app.use(
 
 const io = new Server(server);
 
-io.on("connection", (socket) => {
-  socket.on("disconnect", () => {
-    users = users.filter((user) => user !== socket.id);
-    io.emit("disconnected-user", users);
-  });
-
-  socket.on("join", (user) => {});
-
-  socket.on("active-user", (username) => {
-    users.push(username);
-    io.emit("active-user", users);
-  });
-
-  socket.on("message", (msg, to) => {
-    const cookies = socket.request.headers.cookie;
-    const parsedCookies = cookies ? cookie.parse(cookies) : {};
-    const username = parsedCookies.user;
-
-    console.log("username :", username);
-    console.log("to :", to);
-    console.log("msg :", msg);
-    io.emit("message", msg, to, username);
-  });
-});
+io.on("connection", (socket) => {});
 
 const PORT = process.env.PORT || 3001;
 const MONGO_URL = process.env.MONGO_URL;
@@ -77,11 +54,10 @@ const authentificationMiddleWare = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.SECRET);
     if (!decoded) res.status(401).json({ error: "Unothorized! invalid token" });
-    console.log(decoded.userID);
     req.userID = decoded.userID;
     next();
   } catch (error) {
-    res.status(401).json({ message: "User not logged in" });
+    return res.status(401).json({ message: "User not logged in" });
   }
 };
 
@@ -117,7 +93,7 @@ app.post("/register", async (req, res) => {
       const hashedPW = await bcrypt.hash(password, 10);
       const user = await userModel.createUser({ username, password: hashedPW });
       if (user != {}) {
-        asignToken(userExist._id, Number(process.env.EXPIRY), res);
+        asignToken(user._id, Number(process.env.EXPIRY), res);
         res.json({ message: "succesful", user });
       } else {
         res.status(501).json({ message: "couldn't create user" });
@@ -154,10 +130,10 @@ app.post("/login", async (req, res) => {
 
 app.get("/users", authentificationMiddleWare, async (req, res) => {
   const users = await userModel.getUsers();
-  const usernames = users.map((user) => {
-    return user.username;
+  let usernames = users.map((user) => {
+    return { username: user.username, id: user._id };
   });
-  res.json({ users: usernames });
+  return res.json({ users: usernames });
 });
 
 app.post("/send/:id", authentificationMiddleWare, async (req, res) => {
@@ -171,7 +147,7 @@ app.post("/send/:id", authentificationMiddleWare, async (req, res) => {
     });
     if (!conversation) {
       conversation = await conversationModel.create({
-        participants: [receiverID, senderID],
+        participants: [senderID, receiverID],
       });
     }
 
@@ -186,10 +162,10 @@ app.post("/send/:id", authentificationMiddleWare, async (req, res) => {
 
     await Promise.all([await conversation.save(), await newMsg.save()]);
 
-    res.status(201).json(newMsg);
+    return res.status(201).json(newMsg);
   } catch (e) {
     console.log("Error sending msg: ", e);
-    res.status(500).json({ error: "Internal error" });
+    return res.status(500).json({ error: "Internal error" });
   }
 });
 
@@ -198,12 +174,22 @@ app.get("/:id", authentificationMiddleWare, async (req, res) => {
     const { id: userChat } = req.params;
     const userCurrent = req.userID;
 
-    const conversation = await conversationModel.findOne({
-      participants: { $all: [userChat, userCurrent] },
-    }).populate("messages");
+    if(userChat == userCurrent) return res.status(200).json({})
 
-    res.status(200).json(conversation.messages)
+    const conversation = await conversationModel
+      .findOne({
+        participants: { $all: [userChat, userCurrent] },
+      })
+      .populate("messages");
+      
+    console.log(conversation);
+    if (!conversation) {
+      return res.status(200).json({});
+    } else {
+      return res.status(200).json(conversation.messages);
+    }
   } catch (e) {
-    res.status(500).json({ error: "Internal error" });
+    console.log("error: \n", e);
+    return res.status(500).json({ error: "Internal error" });
   }
 });
