@@ -32,8 +32,6 @@ app.use(
 
 const io = new Server(server);
 
-io.on("connection", (socket) => {});
-
 const PORT = process.env.PORT || 3001;
 const MONGO_URL = process.env.MONGO_URL;
 
@@ -133,6 +131,10 @@ app.get("/users", authentificationMiddleWare, async (req, res) => {
   let usernames = users.map((user) => {
     return { username: user.username, id: user._id };
   });
+  /*usernames = usernames.filter((user) => {
+    if(user.id != req.userID)
+      return user
+  })*/
   return res.json({ users: usernames });
 });
 
@@ -174,15 +176,14 @@ app.get("/:id", authentificationMiddleWare, async (req, res) => {
     const { id: userChat } = req.params;
     const userCurrent = req.userID;
 
-    if(userChat == userCurrent) return res.status(200).json({})
+    if (userChat == userCurrent) return res.status(200).json({});
 
     const conversation = await conversationModel
       .findOne({
         participants: { $all: [userChat, userCurrent] },
       })
       .populate("messages");
-      
-    console.log(conversation);
+
     if (!conversation) {
       return res.status(200).json({});
     } else {
@@ -192,4 +193,32 @@ app.get("/:id", authentificationMiddleWare, async (req, res) => {
     console.log("error: \n", e);
     return res.status(500).json({ error: "Internal error" });
   }
+});
+
+io.on("connection", (socket) => {
+  const cookies = socket.handshake.headers.cookie;
+  if (!cookies) {
+    console.log("No cookies found, disconnecting socket.");
+    socket.disconnect();
+    return;
+  }
+
+  const parsedCookies = cookie.parse(cookies);
+  if (!parsedCookies.user) {
+    socket.disconnect();
+    return;
+  }
+  users.push({ userID: parsedCookies.user, socketID: socket.id });
+  console.log(users)
+  socket.emit("user", parsedCookies.user);
+
+  socket.on("message", ({ message, to }) => {
+    io.to(to).emit("message", { message, from: socket.id });
+  });
+
+  socket.on("disconnect", () => {
+    users = users.filter((user) => user.socketID !== socket.id);
+    console.log("Updated users list:", users);
+  });
+
 });
